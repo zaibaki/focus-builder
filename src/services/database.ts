@@ -369,3 +369,18 @@ export async function deleteTrack(id: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM tracks WHERE id = ?', [id]);
 }
+
+export async function resetDatabase(): Promise<void> {
+  const database = await getDatabase();
+  await database.execAsync(`
+    DROP TABLE IF EXISTS sessions;
+    DROP TABLE IF EXISTS tracks;
+    DROP TABLE IF EXISTS blocked_apps;
+    DROP TABLE IF EXISTS session_blocked_attempts;
+    DROP TABLE IF EXISTS session_tracks;
+    DROP TABLE IF EXISTS playlists;
+    DROP TABLE IF EXISTS playlist_tracks;
+    DROP TABLE IF EXISTS custom_mixes;
+  `);
+  await initSchema();
+}

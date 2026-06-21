@@ -1,5 +1,5 @@
 /**
- * Player Store — Manages music playback state
+ * Player Store — Manages music playback state and audio configurations
  */
 import { create } from 'zustand';
 
@@ -24,6 +24,11 @@ interface PlayerState {
   // Filter
   activeCategory: string;
 
+  // Audio Configurations (Preferences)
+  playbackSpeed: number;
+  audioMode: 'normal' | 'alpha' | 'theta' | 'deep-eq';
+  mixerVolumes: Record<string, number>;
+
   // Actions
   setTrack: (track: PlayerTrack) => void;
   play: () => void;
@@ -35,6 +40,12 @@ interface PlayerState {
   previousTrack: () => void;
   setActiveCategory: (category: string) => void;
   clearPlayer: () => void;
+
+  // Preference Actions
+  setPlaybackSpeed: (speed: number) => void;
+  setAudioMode: (mode: 'normal' | 'alpha' | 'theta' | 'deep-eq') => void;
+  setMixerVolume: (channel: string, level: number) => void;
+  resetMixer: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -44,6 +55,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   queue: [],
   currentIndex: -1,
   activeCategory: 'all',
+
+  // Default Preferences
+  playbackSpeed: 1.0,
+  audioMode: 'normal',
+  mixerVolumes: {
+    rain: 0,
+    birds: 0,
+    cafe: 0,
+    beats: 0,
+  },
 
   setTrack: (track) => {
     const { queue } = get();
@@ -96,5 +117,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       progress: 0,
       currentIndex: -1,
+    }),
+
+  // Preferences
+  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
+  setAudioMode: (audioMode) => set({ audioMode }),
+  setMixerVolume: (channel, level) =>
+    set((s) => ({
+      mixerVolumes: { ...s.mixerVolumes, [channel]: level },
+    })),
+  resetMixer: () =>
+    set({
+      mixerVolumes: { rain: 0, birds: 0, cafe: 0, beats: 0 },
     }),
 }));
