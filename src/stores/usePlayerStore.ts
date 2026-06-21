@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { audioService } from '../services/audio';
+import { audioService, registerPlayerStore } from '../services/audio';
 
 export interface PlayerTrack {
   id: number;
@@ -165,3 +165,5 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audioService.resetMixer();
   },
 }));
+
+registerPlayerStore(usePlayerStore);

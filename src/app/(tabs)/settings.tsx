@@ -391,38 +391,42 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>My Custom Mixes</Text>
           <Text style={styles.cardDesc}>Activate saved volume blend presets directly.</Text>
           <View style={styles.savedMixesContainer}>
-            {savedMixList.map((item) => (
-              <View key={item.id} style={styles.savedMixRow}>
-                <TouchableOpacity
-                  style={styles.mixActivationButton}
-                  onPress={() => {
-                    try {
-                      const config = JSON.parse(item.mix_config);
+            {savedMixList.map((item) => {
+              let config: Record<string, number> = {};
+              try {
+                config = JSON.parse(item.mix_config);
+              } catch (e) {
+                console.warn('Failed to parse custom mix config:', e);
+              }
+
+              const details = Object.keys(config)
+                .map((k) => `${k}: ${config[k]}`)
+                .join(' | ');
+
+              return (
+                <View key={item.id} style={styles.savedMixRow}>
+                  <TouchableOpacity
+                    style={styles.mixActivationButton}
+                    onPress={() => {
                       // Apply mix configuration
                       for (const ch of Object.keys(config)) {
                         setMixerVolume(ch, config[ch]);
                       }
                       Alert.alert('Applied Mix', `"${item.name}" loaded successfully.`);
-                    } catch (e) {
-                      console.warn(e);
-                    }
-                  }}
-                >
-                  <Text style={styles.savedMixName}>{item.name}</Text>
-                  <Text style={styles.savedMixDetails}>
-                    {Object.keys(JSON.parse(item.mix_config))
-                      .map((k) => `${k}: ${JSON.parse(item.mix_config)[k]}`)
-                      .join(' | ')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteMixButton}
-                  onPress={() => handleDeleteMix(item.id, item.name)}
-                >
-                  <Text style={styles.deleteMixText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+                    }}
+                  >
+                    <Text style={styles.savedMixName}>{item.name}</Text>
+                    <Text style={styles.savedMixDetails}>{details}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteMixButton}
+                    onPress={() => handleDeleteMix(item.id, item.name)}
+                  >
+                    <Text style={styles.deleteMixText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}

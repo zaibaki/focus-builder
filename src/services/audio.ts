@@ -4,7 +4,7 @@
  * using `expo-av`.
  */
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import { usePlayerStore, PlayerTrack } from '../stores/usePlayerStore';
+import type { PlayerTrack } from '../stores/usePlayerStore';
 
 const MIXER_SOUNDS: Record<string, string> = {
   rain: 'https://raw.githubusercontent.com/Alen-guo/SoundScape-AI/master/public/sounds/rain.mp3',
@@ -17,6 +17,13 @@ const MODE_SOUNDS: Record<string, string> = {
   alpha: 'https://raw.githubusercontent.com/karthiknvd/noctune/master/sounds/night.mp3',
   theta: 'https://raw.githubusercontent.com/karthiknvd/noctune/master/sounds/river.mp3',
 };
+
+// Dynamic store registry to break cyclic circular imports
+let playerStore: any = null;
+
+export function registerPlayerStore(store: any) {
+  playerStore = store;
+}
 
 class AudioService {
   private mainSound: Audio.Sound | null = null;
@@ -53,6 +60,7 @@ class AudioService {
 
   /** Plays or updates a music track */
   async playTrack(track: PlayerTrack) {
+    if (!playerStore) return;
     await this.ensureAudioMode();
     try {
       // 1. Stop and unload previous track
@@ -63,9 +71,7 @@ class AudioService {
 
       // Check if it's a Custom Mix track
       if (track.category === 'custom' && track.id >= 1000 && track.id < 5000) {
-        // It's an ambient mix container. We shouldn't stream a backing track
-        // unless they also want one. Instead, we can stop the track, but let the mixer handle it.
-        // We'll update the Zustand player store so progress runs
+        // It's an ambient mix container. We shouldn't stream a backing track.
         return;
       }
 
@@ -89,7 +95,7 @@ class AudioService {
       this.mainSound = sound;
 
       // Apply current speed and mode adjustments
-      const state = usePlayerStore.getState();
+      const state = playerStore.getState();
       await this.applySpeed(state.playbackSpeed);
       await this.applyAudioModeEffects(state.audioMode);
     } catch (e) {
@@ -124,9 +130,10 @@ class AudioService {
 
   /** Resume playbacks */
   async resume() {
+    if (!playerStore) return;
     await this.ensureAudioMode();
     try {
-      const state = usePlayerStore.getState();
+      const state = playerStore.getState();
 
       if (this.mainSound) {
         await this.mainSound.playAsync();
@@ -163,6 +170,7 @@ class AudioService {
 
   /** Adjust mixer volume channel in real-time */
   async setMixerVolume(channel: string, level: number) {
+    if (!playerStore) return;
     await this.ensureAudioMode();
     const uri = MIXER_SOUNDS[channel];
     if (!uri) return;
@@ -197,14 +205,14 @@ class AudioService {
         const status = await sound.getStatusAsync();
         if (status.isLoaded) {
           await sound.setStatusAsync({
-            shouldPlay: usePlayerStore.getState().isPlaying,
+            shouldPlay: playerStore.getState().isPlaying,
             volume,
           });
         }
       }
 
-      // Apply mode effects if Deep Focus EQ is active (EQ alters volumes of specific mixer tracks)
-      const currentMode = usePlayerStore.getState().audioMode;
+      // Apply mode effects if Deep Focus EQ is active
+      const currentMode = playerStore.getState().audioMode;
       if (currentMode === 'deep-eq') {
         await this.applyAudioModeEffects('deep-eq');
       }
@@ -246,6 +254,7 @@ class AudioService {
 
   /** Apply audio mode (Alpha, Theta, EQ attenuation) */
   async applyAudioModeEffects(mode: 'normal' | 'alpha' | 'theta' | 'deep-eq') {
+    if (!playerStore) return;
     await this.ensureAudioMode();
     try {
       // 1. Manage Binaural Wave Channels (Alpha and Theta)
@@ -257,7 +266,7 @@ class AudioService {
             const { sound: newSound } = await Audio.Sound.createAsync(
               { uri },
               {
-                shouldPlay: usePlayerStore.getState().isPlaying,
+                shouldPlay: playerStore.getState().isPlaying,
                 isLooping: true,
                 volume: 0.35, // Balanced volume for low-frequency backing hum
               }
@@ -265,7 +274,7 @@ class AudioService {
             this.modeSounds[key] = newSound;
           } else {
             await sound.setStatusAsync({
-              shouldPlay: usePlayerStore.getState().isPlaying,
+              shouldPlay: playerStore.getState().isPlaying,
               volume: 0.35,
             });
           }
@@ -277,15 +286,13 @@ class AudioService {
       }
 
       // 2. Manage Deep Focus EQ Simulation
-      // Attenuates high frequencies by reducing high-pitched ambient channels
-      const state = usePlayerStore.getState();
+      const state = playerStore.getState();
       const mainVolume = mode === 'deep-eq' ? 0.55 : 0.8;
       if (this.mainSound) {
         await this.mainSound.setVolumeAsync(mainVolume);
       }
 
-      // Adjust mixer channels: birds (nature) and cafe chatter have prominent mid-highs
-      // Deep EQ attenuates Birds, Cafe, and Rain slightly, leaving Beats (deep bass hums) intact.
+      // Adjust mixer channels: birds and cafe chatter have prominent mid-highs
       for (const channel of Object.keys(this.mixerSounds)) {
         const sound = this.mixerSounds[channel];
         if (!sound) continue;
@@ -297,7 +304,6 @@ class AudioService {
           if (channel === 'birds') finalVol = baseVol * 0.25; // 75% cut
           else if (channel === 'cafe') finalVol = baseVol * 0.3; // 70% cut
           else if (channel === 'rain') finalVol = baseVol * 0.5; // 50% cut
-          // beats/brown noise remains at 100% volume for bass masking!
         }
 
         await sound.setVolumeAsync(finalVol);
@@ -309,6 +315,7 @@ class AudioService {
 
   /** Callback to feed player store progress */
   private onPlaybackStatusUpdate(status: any) {
+    if (!playerStore) return;
     if (!status.isLoaded) {
       if (status.error) {
         console.warn(`[AudioService] Playback error: ${status.error}`);
@@ -319,11 +326,11 @@ class AudioService {
     // Push progress (0 to 1) into Zustand
     if (status.durationMillis && status.positionMillis) {
       const progress = status.positionMillis / status.durationMillis;
-      usePlayerStore.getState().setProgress(progress);
+      playerStore.getState().setProgress(progress);
 
       // Handle track completion
       if (status.didJustFinish) {
-        usePlayerStore.getState().nextTrack();
+        playerStore.getState().nextTrack();
       }
     }
   }
