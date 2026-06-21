@@ -9,11 +9,13 @@ import {
   Text,
   TextInput,
   View,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircularProgress } from '../../components/timer/CircularProgress';
 import { useTimerStore } from '../../stores/useTimerStore';
 import { useBlockStore } from '../../stores/useBlockStore';
+import { usePlayerStore } from '../../stores/usePlayerStore';
 import * as db from '../../services/database';
 import {
   Colors,
@@ -54,6 +56,57 @@ export default function TimerScreen() {
     tick,
   } = useTimerStore();
 
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+
+  // Background Soothing Pan/Zoom Animation (Ken Burns Effect)
+  const zoomAnim = useRef(new Animated.Value(1.0)).current;
+  const panAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+
+  useEffect(() => {
+    let animationLoop: Animated.CompositeAnimation | null = null;
+    if (isPlaying && currentTrack) {
+      animationLoop = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(zoomAnim, {
+              toValue: 1.12,
+              duration: 22000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(panAnim, {
+              toValue: { x: 8, y: -8 },
+              duration: 22000,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(zoomAnim, {
+              toValue: 1.0,
+              duration: 22000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(panAnim, {
+              toValue: { x: -8, y: 8 },
+              duration: 22000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      animationLoop.start();
+    } else {
+      zoomAnim.setValue(1.0);
+      panAnim.setValue({ x: 0, y: 0 });
+    }
+    
+    return () => {
+      if (animationLoop) {
+        animationLoop.stop();
+      }
+    };
+  }, [isPlaying, currentTrack]);
+
   const handleSimulateDistraction = async () => {
     const blocked = useBlockStore.getState().blockedApps.filter(a => a.isActive);
     let appName = 'Instagram';
@@ -91,15 +144,36 @@ export default function TimerScreen() {
   const selectedMinutes = targetDuration / 60;
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={styles.root}>
+      {currentTrack && isPlaying && (
+        <View style={StyleSheet.absoluteFill}>
+          <Animated.Image
+            source={currentTrack.artwork}
+            style={[
+              styles.backgroundImage,
+              {
+                transform: [
+                  { scale: zoomAnim },
+                  { translateX: panAnim.x },
+                  { translateY: panAnim.y },
+                ],
+              },
+            ]}
+            resizeMode="cover"
+          />
+          <View style={styles.backgroundOverlay} />
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.scrollRoot}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* ── Title ─────────────────────────── */}
       <Text style={styles.title}>Focus Session</Text>
 
@@ -239,6 +313,7 @@ export default function TimerScreen() {
         </Pressable>
       )}
     </ScrollView>
+  </View>
   );
 }
 
@@ -247,6 +322,23 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollRoot: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  backgroundImage: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    opacity: 0.28,
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Colors.background,
+    opacity: 0.65,
   },
   content: {
     alignItems: 'center',

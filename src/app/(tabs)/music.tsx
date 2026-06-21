@@ -1,5 +1,5 @@
 /**
- * Music Screen — Sound Library tab with Custom Ambient Sound Mixer
+ * Music Screen — Sound Library tab with Custom Ambient Mixer & Track Importer
  */
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
@@ -10,9 +10,11 @@ import {
   Pressable,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import { documentDirectory, copyAsync, deleteAsync } from 'expo-file-system/legacy';
 import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/colors';
 import { BUNDLED_TRACKS, CATEGORIES, DEFAULT_ARTWORK } from '../../constants/tracks';
 import { usePlayerStore, type PlayerTrack } from '../../stores/usePlayerStore';
@@ -65,31 +67,46 @@ export default function MusicScreen() {
     beats: 0,
   });
 
-  // Custom mixes from DB
+  // Custom mixes and imported tracks loaded from SQLite
   const [savedMixes, setSavedMixes] = useState<PlayerTrack[]>([]);
 
-  // Load custom mixes
-  const loadSavedMixes = useCallback(async () => {
+  // Load custom mixes AND user-imported audio tracks from DB
+  const loadSavedMixesAndTracks = useCallback(async () => {
     try {
+      // 1. Fetch custom slider mixes
       const mixes = await db.getCustomMixes();
-      const mapped: PlayerTrack[] = mixes.map((m) => ({
-        id: 1000 + m.id,
+      const mappedMixes: PlayerTrack[] = mixes.map((m) => ({
+        id: 1000 + m.id, // Mix IDs start at 1000
         title: m.name,
         artist: 'My Custom Mix',
         uri: '',
         artwork: DEFAULT_ARTWORK,
-        duration: 1800, // 30 minutes simulated loop
+        duration: 1800, // 30m simulated loops
         category: 'custom',
       }));
-      setSavedMixes(mapped);
+
+      // 2. Fetch user-imported audio tracks
+      const imported = await db.getAllTracks('custom');
+      const mappedImported: PlayerTrack[] = imported.map((t) => ({
+        id: 5000 + t.id, // Imported track IDs start at 5000
+        title: t.title,
+        artist: t.artist || 'Imported Track',
+        uri: t.uri,
+        artwork: DEFAULT_ARTWORK,
+        duration: t.duration_sec || 300,
+        category: 'custom',
+      }));
+
+      // Combine both in the "My Tracks" category
+      setSavedMixes([...mappedMixes, ...mappedImported]);
     } catch (e) {
-      console.warn('Failed to load custom mixes', e);
+      console.warn('Failed to load custom library items:', e);
     }
   }, []);
 
   useEffect(() => {
-    loadSavedMixes();
-  }, [loadSavedMixes]);
+    loadSavedMixesAndTracks();
+  }, [loadSavedMixesAndTracks]);
 
   // Build full player-track list from bundled data
   const allTracks = useMemo(
@@ -137,23 +154,74 @@ export default function MusicScreen() {
       setMixName('');
       setVolumes({ rain: 0, birds: 0, cafe: 0, beats: 0 });
       setIsMixerOpen(false);
-      loadSavedMixes();
-      setActiveCategory('custom'); // Switch filter to custom category
+      await loadSavedMixesAndTracks();
+      setActiveCategory('custom'); // Switch to custom tab
     } catch (e) {
       console.warn('Failed to save mix', e);
     }
   };
 
-  const handleDeleteMix = async (trackId: number) => {
+  const handleImportAudio = async () => {
     try {
-      const dbId = trackId - 1000;
-      await db.deleteCustomMix(dbId);
-      loadSavedMixes();
-      if (currentTrack?.id === trackId) {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const filename = asset.name || `track_${Date.now()}.mp3`;
+      const localUri = documentDirectory + filename;
+
+      // Copy file from cache to app permanent storage sandbox
+      await copyAsync({
+        from: asset.uri,
+        to: localUri,
+      });
+
+      // Insert track record into SQLite
+      await db.insertTrack({
+        title: filename.replace(/\.[^/.]+$/, ""), // Strip file extension
+        artist: 'Local Import',
+        uri: localUri,
+        category: 'custom',
+        duration_sec: 300,
+      });
+
+      await loadSavedMixesAndTracks();
+      setActiveCategory('custom'); // Automatically focus custom tab
+      Alert.alert('Success', `${filename} imported to your Sound Library.`);
+    } catch (e) {
+      console.warn('Failed to import track', e);
+      Alert.alert('Import Failed', 'Unable to copy audio file.');
+    }
+  };
+
+  const handleDeleteItem = async (item: PlayerTrack) => {
+    try {
+      if (item.id >= 5000) {
+        // User imported track
+        const dbId = item.id - 5000;
+        await db.deleteTrack(dbId);
+        // Clean up file sandbox
+        if (item.uri) {
+          await deleteAsync(item.uri, { idempotent: true }).catch(() => {});
+        }
+      } else {
+        // Saved Custom Mix
+        const dbId = item.id - 1000;
+        await db.deleteCustomMix(dbId);
+      }
+      
+      loadSavedMixesAndTracks();
+      if (currentTrack?.id === item.id) {
         usePlayerStore.getState().clearPlayer();
       }
     } catch (e) {
-      console.warn('Failed to delete mix', e);
+      console.warn('Failed to delete item', e);
     }
   };
 
@@ -172,7 +240,7 @@ export default function MusicScreen() {
           {item.category === 'custom' && (
             <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => handleDeleteMix(item.id)}
+              onPress={() => handleDeleteItem(item)}
             >
               <Text style={styles.deleteButtonText}>×</Text>
             </TouchableOpacity>
@@ -180,7 +248,7 @@ export default function MusicScreen() {
         </View>
       );
     },
-    [currentTrack, isPlaying, handleTrackPress, loadSavedMixes]
+    [currentTrack, isPlaying, handleTrackPress]
   );
 
   const keyExtractor = useCallback((item: PlayerTrack) => String(item.id), []);
@@ -190,8 +258,8 @@ export default function MusicScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>Sound Library</Text>
+          <View style={{ flex: 1, marginRight: Spacing.sm }}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Sound Library</Text>
             <Text style={styles.headerSubtitle}>
               {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''} ·{' '}
               {formatTotalDuration(
@@ -200,19 +268,34 @@ export default function MusicScreen() {
             </Text>
           </View>
 
-          {/* Toggle Mixer Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.mixerToggle,
-              isMixerOpen && styles.mixerToggleActive,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => setIsMixerOpen(!isMixerOpen)}
-          >
-            <Text style={styles.mixerToggleText}>
-              {isMixerOpen ? 'Close Mixer' : '🎛️ Ambient Mixer'}
-            </Text>
-          </Pressable>
+          <View style={styles.buttonRow}>
+            {/* Toggle Mixer Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.mixerToggle,
+                isMixerOpen && styles.mixerToggleActive,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setIsMixerOpen(!isMixerOpen)}
+            >
+              <Text style={styles.mixerToggleText}>
+                {isMixerOpen ? 'Mixer' : '🎛️ Mixer'}
+              </Text>
+            </Pressable>
+
+            {/* Import Audio Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.mixerToggle,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleImportAudio}
+            >
+              <Text style={styles.mixerToggleText}>
+                📥 Import
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -292,7 +375,7 @@ export default function MusicScreen() {
             <Text style={styles.emptyTitle}>No tracks yet</Text>
             <Text style={styles.emptySubtitle}>
               {activeCategory === 'custom'
-                ? 'Create a custom mix using the mixer at the top!'
+                ? 'Create a custom mix or import a local audio track!'
                 : 'Tracks in this category will appear here'}
             </Text>
           </View>
@@ -321,7 +404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.xxl - 2,
     fontWeight: '700',
     color: Colors.textPrimary,
     letterSpacing: -0.5,
@@ -331,10 +414,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
   mixerToggle: {
     backgroundColor: Colors.surface,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm + 4,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.border,

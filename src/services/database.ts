@@ -364,3 +364,8 @@ export async function deleteCustomMix(id: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM custom_mixes WHERE id = ?', [id]);
 }
+
+export async function deleteTrack(id: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM tracks WHERE id = ?', [id]);
+}
