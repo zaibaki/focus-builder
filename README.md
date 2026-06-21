@@ -12,11 +12,13 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 *   **Visual Progress**: Large, beautiful circular progress ring drawn dynamically using `react-native-svg`.
 *   **Presets & Customization**: Presets for 15m, 25m, 45m, 60m, and 90m focus sessions, alongside custom tags/labels (e.g. "Coding", "Writing").
 *   **Full Timer Control**: Smooth flow transitioning between *Start*, *Pause*, *Resume*, and *Give Up* actions.
+*   **Soothing Animated Background**: When music is playing, the screen background displays the current track's artwork softly faded and animated in a slow, soothing Ken Burns pan/zoom effect to create an immersive focus environment.
 *   **Distraction Simulator**: Run a simulated distraction interception when a session is active to test the app blocker functionality and record stats.
 
 ### 2. 🎵 Sound Library & Ambient Mixer
 *   **Curated Tracks**: Pre-seeded background tracks (e.g., Deep Focus, Rainfall, Ocean Waves, Café Ambience, birds, and cosmic ambient loops).
 *   **Category Filters**: Swiftly browse tracks through horizontal chip filters (All, Ambient, Nature, Lo-Fi, White Noise, My Tracks).
+*   **Track Importer**: Choose and import local audio files (MP3, WAV, etc.) using `expo-document-picker`. The files are copied into the app's sandboxed document directory and registered in SQLite.
 *   **Ambient Sound Mixer**: Collapsible mixing board allowing users to blend volume levels of 4 sound channels (Rain, Birds, Café, Binaural beats) using custom volume swatches.
 *   **Mix Seeding**: Save custom ambient mixes to SQLite database. They instantly appear and are playable in the "My Tracks" library.
 *   **Persistent Mini Player**: Pinned bottom playback bar displaying current track artwork, title, playback controls, and a reactive progress bar.
