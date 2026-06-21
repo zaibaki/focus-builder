@@ -1,9 +1,9 @@
 /**
  * Audio Service — Manages multi-channel loop mixing, track playback,
  * speed adjustments, and audio modes (binaural beats entrainment and EQ simulation)
- * using `expo-av`.
+ * using the modern, New Architecture-compatible `expo-audio`.
  */
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import type { PlayerTrack } from '../stores/usePlayerStore';
 
 const MIXER_SOUNDS: Record<string, string> = {
@@ -26,14 +26,17 @@ export function registerPlayerStore(store: any) {
 }
 
 class AudioService {
-  private mainSound: Audio.Sound | null = null;
-  private mixerSounds: Record<string, Audio.Sound | null> = {
+  private mainPlayer: AudioPlayer | null = null;
+  private mainSubscription: any = null;
+
+  private mixerPlayers: Record<string, AudioPlayer | null> = {
     rain: null,
     birds: null,
     cafe: null,
     beats: null,
   };
-  private modeSounds: Record<string, Audio.Sound | null> = {
+
+  private modePlayers: Record<string, AudioPlayer | null> = {
     alpha: null,
     theta: null,
   };
@@ -44,13 +47,12 @@ class AudioService {
   private async ensureAudioMode() {
     if (this.isAudioModeConfigured) return;
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        playThroughEarpieceAndroid: false,
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        allowsRecording: false,
+        interruptionMode: 'duckOthers',
+        shouldRouteThroughEarpiece: false,
       });
       this.isAudioModeConfigured = true;
     } catch (e) {
@@ -63,15 +65,19 @@ class AudioService {
     if (!playerStore) return;
     await this.ensureAudioMode();
     try {
-      // 1. Stop and unload previous track
-      if (this.mainSound) {
-        await this.mainSound.unloadAsync();
-        this.mainSound = null;
+      // 1. Clean up previous main player
+      if (this.mainPlayer) {
+        if (this.mainSubscription) {
+          this.mainSubscription.remove();
+          this.mainSubscription = null;
+        }
+        this.mainPlayer.remove();
+        this.mainPlayer = null;
       }
 
       // Check if it's a Custom Mix track
       if (track.category === 'custom' && track.id >= 1000 && track.id < 5000) {
-        // It's an ambient mix container. We shouldn't stream a backing track.
+        // It's an ambient mix container. No single backing track to play.
         return;
       }
 
@@ -80,19 +86,29 @@ class AudioService {
         return;
       }
 
-      const source = { uri: track.uri };
+      // 2. Create new AudioPlayer
+      const player = createAudioPlayer(track.uri, { updateInterval: 1000 });
+      player.loop = true;
+      player.volume = 0.8;
 
-      const { sound } = await Audio.Sound.createAsync(
-        source,
-        {
-          shouldPlay: true,
-          isLooping: true,
-          volume: 0.8,
-        },
-        this.onPlaybackStatusUpdate.bind(this)
-      );
+      // Subscribe to playback status updates
+      this.mainSubscription = player.addListener('playbackStatusUpdate', (status) => {
+        if (!playerStore) return;
+        if (status.duration && status.currentTime) {
+          const progress = status.currentTime / status.duration;
+          playerStore.getState().setProgress(progress);
+        }
 
-      this.mainSound = sound;
+        // Handle track completion
+        if (status.didJustFinish) {
+          playerStore.getState().nextTrack();
+        }
+      });
+
+      this.mainPlayer = player;
+
+      // Start playing
+      player.play();
 
       // Apply current speed and mode adjustments
       const state = playerStore.getState();
@@ -106,21 +122,21 @@ class AudioService {
   /** Pause active playbacks */
   async pause() {
     try {
-      if (this.mainSound) {
-        await this.mainSound.pauseAsync();
+      if (this.mainPlayer) {
+        this.mainPlayer.pause();
       }
-      // Pause mixer channels that are playing
-      for (const key of Object.keys(this.mixerSounds)) {
-        const sound = this.mixerSounds[key];
-        if (sound) {
-          await sound.pauseAsync();
+      // Pause mixer channels
+      for (const key of Object.keys(this.mixerPlayers)) {
+        const player = this.mixerPlayers[key];
+        if (player) {
+          player.pause();
         }
       }
       // Pause active mode sounds
-      for (const key of Object.keys(this.modeSounds)) {
-        const sound = this.modeSounds[key];
-        if (sound) {
-          await sound.pauseAsync();
+      for (const key of Object.keys(this.modePlayers)) {
+        const player = this.modePlayers[key];
+        if (player) {
+          player.pause();
         }
       }
     } catch (e) {
@@ -135,8 +151,8 @@ class AudioService {
     try {
       const state = playerStore.getState();
 
-      if (this.mainSound) {
-        await this.mainSound.playAsync();
+      if (this.mainPlayer) {
+        this.mainPlayer.play();
       }
 
       // Resume mixer loops with non-zero volume
@@ -159,9 +175,13 @@ class AudioService {
   /** Unloads the main track */
   async stopTrack() {
     try {
-      if (this.mainSound) {
-        await this.mainSound.unloadAsync();
-        this.mainSound = null;
+      if (this.mainPlayer) {
+        if (this.mainSubscription) {
+          this.mainSubscription.remove();
+          this.mainSubscription = null;
+        }
+        this.mainPlayer.remove();
+        this.mainPlayer = null;
       }
     } catch (e) {
       console.warn('[AudioService] Error unloading track:', e);
@@ -176,39 +196,31 @@ class AudioService {
     if (!uri) return;
 
     try {
-      let sound = this.mixerSounds[channel];
-
-      // Volume scaling: level is 0 to 4
+      let player = this.mixerPlayers[channel];
       const volume = level / 4.0;
 
-      // If volume is 0 and sound exists, pause it to save bandwidth/battery
+      // If volume is 0 and player exists, pause it to save bandwidth/battery
       if (level === 0) {
-        if (sound) {
-          await sound.setStatusAsync({ shouldPlay: false, volume: 0 });
+        if (player) {
+          player.pause();
+          player.volume = 0;
         }
         return;
       }
 
-      // If sound doesn't exist, load it
-      if (!sound) {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri },
-          {
-            shouldPlay: true,
-            isLooping: true,
-            volume,
-          }
-        );
-        this.mixerSounds[channel] = newSound;
-        sound = newSound;
+      // If player doesn't exist, create it
+      if (!player) {
+        player = createAudioPlayer(uri);
+        player.loop = true;
+        player.volume = volume;
+        this.mixerPlayers[channel] = player;
       } else {
-        const status = await sound.getStatusAsync();
-        if (status.isLoaded) {
-          await sound.setStatusAsync({
-            shouldPlay: playerStore.getState().isPlaying,
-            volume,
-          });
-        }
+        player.volume = volume;
+      }
+
+      // If player store is playing, start playback
+      if (playerStore.getState().isPlaying) {
+        player.play();
       }
 
       // Apply mode effects if Deep Focus EQ is active
@@ -224,13 +236,12 @@ class AudioService {
   /** Speed multiplier (pitch-corrected rate setting) */
   async applySpeed(speed: number) {
     try {
-      if (this.mainSound) {
-        await this.mainSound.setRateAsync(speed, true);
+      if (this.mainPlayer) {
+        this.mainPlayer.playbackRate = speed;
       }
-      // Speed can also modulate the ambient mixer loops for cohesive feel
-      for (const sound of Object.values(this.mixerSounds)) {
-        if (sound) {
-          await sound.setRateAsync(speed, true);
+      for (const player of Object.values(this.mixerPlayers)) {
+        if (player) {
+          player.playbackRate = speed;
         }
       }
     } catch (e) {
@@ -241,10 +252,11 @@ class AudioService {
   /** Reset all mixer volumes */
   async resetMixer() {
     try {
-      for (const key of Object.keys(this.mixerSounds)) {
-        const sound = this.mixerSounds[key];
-        if (sound) {
-          await sound.setStatusAsync({ shouldPlay: false, volume: 0 });
+      for (const key of Object.keys(this.mixerPlayers)) {
+        const player = this.mixerPlayers[key];
+        if (player) {
+          player.pause();
+          player.volume = 0;
         }
       }
     } catch (e) {
@@ -259,28 +271,24 @@ class AudioService {
     try {
       // 1. Manage Binaural Wave Channels (Alpha and Theta)
       for (const key of ['alpha', 'theta']) {
-        const sound = this.modeSounds[key];
+        let player = this.modePlayers[key];
         if (key === mode) {
           const uri = MODE_SOUNDS[key];
-          if (!sound) {
-            const { sound: newSound } = await Audio.Sound.createAsync(
-              { uri },
-              {
-                shouldPlay: playerStore.getState().isPlaying,
-                isLooping: true,
-                volume: 0.35, // Balanced volume for low-frequency backing hum
-              }
-            );
-            this.modeSounds[key] = newSound;
+          if (!player) {
+            player = createAudioPlayer(uri);
+            player.loop = true;
+            player.volume = 0.35; // Balanced volume for low-frequency backing hum
+            this.modePlayers[key] = player;
           } else {
-            await sound.setStatusAsync({
-              shouldPlay: playerStore.getState().isPlaying,
-              volume: 0.35,
-            });
+            player.volume = 0.35;
+          }
+          if (playerStore.getState().isPlaying) {
+            player.play();
           }
         } else {
-          if (sound) {
-            await sound.setStatusAsync({ shouldPlay: false, volume: 0 });
+          if (player) {
+            player.pause();
+            player.volume = 0;
           }
         }
       }
@@ -288,14 +296,14 @@ class AudioService {
       // 2. Manage Deep Focus EQ Simulation
       const state = playerStore.getState();
       const mainVolume = mode === 'deep-eq' ? 0.55 : 0.8;
-      if (this.mainSound) {
-        await this.mainSound.setVolumeAsync(mainVolume);
+      if (this.mainPlayer) {
+        this.mainPlayer.volume = mainVolume;
       }
 
-      // Adjust mixer channels: birds and cafe chatter have prominent mid-highs
-      for (const channel of Object.keys(this.mixerSounds)) {
-        const sound = this.mixerSounds[channel];
-        if (!sound) continue;
+      // Adjust mixer channels
+      for (const channel of Object.keys(this.mixerPlayers)) {
+        const player = this.mixerPlayers[channel];
+        if (!player) continue;
 
         const baseVol = (state.mixerVolumes[channel] ?? 0) / 4.0;
         let finalVol = baseVol;
@@ -306,32 +314,10 @@ class AudioService {
           else if (channel === 'rain') finalVol = baseVol * 0.5; // 50% cut
         }
 
-        await sound.setVolumeAsync(finalVol);
+        player.volume = finalVol;
       }
     } catch (e) {
       console.warn('[AudioService] Failed to apply audio mode effects:', mode, e);
-    }
-  }
-
-  /** Callback to feed player store progress */
-  private onPlaybackStatusUpdate(status: any) {
-    if (!playerStore) return;
-    if (!status.isLoaded) {
-      if (status.error) {
-        console.warn(`[AudioService] Playback error: ${status.error}`);
-      }
-      return;
-    }
-
-    // Push progress (0 to 1) into Zustand
-    if (status.durationMillis && status.positionMillis) {
-      const progress = status.positionMillis / status.durationMillis;
-      playerStore.getState().setProgress(progress);
-
-      // Handle track completion
-      if (status.didJustFinish) {
-        playerStore.getState().nextTrack();
-      }
     }
   }
 }
