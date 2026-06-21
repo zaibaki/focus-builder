@@ -178,20 +178,50 @@ function DeepFocusEQIcon({ active }: { active?: boolean }) {
 // ─── Data definitions ────────────────────────────────────────────
 
 const CHANNELS = [
-  { key: 'rain', label: 'Rain Sound', renderIcon: (active: boolean) => <RainIcon active={active} /> },
-  { key: 'birds', label: 'Forest Birds', renderIcon: (active: boolean) => <BirdsIcon active={active} /> },
-  { key: 'cafe', label: 'Café Chatter', renderIcon: (active: boolean) => <CafeIcon active={active} /> },
-  { key: 'beats', label: 'Binaural Waves', renderIcon: (active: boolean) => <BeatsIcon active={active} /> },
+  { key: 'rain', label: 'Rain Sound' },
+  { key: 'birds', label: 'Forest Birds' },
+  { key: 'cafe', label: 'Café Chatter' },
+  { key: 'beats', label: 'Binaural Waves' },
 ];
 
 const SPEEDS = [0.5, 0.8, 1.0, 1.25, 1.5];
 
 const AUDIO_MODES = [
-  { key: 'normal', label: 'Normal Mode', desc: 'Standard ambient mix loop playbacks', renderIcon: (active: boolean) => <NormalModeIcon active={active} /> },
-  { key: 'alpha', label: 'Alpha Waves (10Hz)', desc: 'Backing pulses for learning & memory', renderIcon: (active: boolean) => <AlphaModeIcon active={active} /> },
-  { key: 'theta', label: 'Theta Waves (5Hz)', desc: 'Deep binaural resonance for creative focus', renderIcon: (active: boolean) => <ThetaModeIcon active={active} /> },
-  { key: 'deep-eq', label: 'Deep Focus EQ', desc: 'Attenuates high frequencies; warm bass focus', renderIcon: (active: boolean) => <DeepFocusEQIcon active={active} /> },
+  { key: 'normal', label: 'Normal Mode', desc: 'Standard ambient mix loop playbacks' },
+  { key: 'alpha', label: 'Alpha Waves (10Hz)', desc: 'Backing pulses for learning & memory' },
+  { key: 'theta', label: 'Theta Waves (5Hz)', desc: 'Deep binaural resonance for creative focus' },
+  { key: 'deep-eq', label: 'Deep Focus EQ', desc: 'Attenuates high frequencies; warm bass focus' },
 ] as const;
+
+function ChannelIcon({ channelKey, active }: { channelKey: string; active: boolean }) {
+  switch (channelKey) {
+    case 'rain':
+      return <RainIcon active={active} />;
+    case 'birds':
+      return <BirdsIcon active={active} />;
+    case 'cafe':
+      return <CafeIcon active={active} />;
+    case 'beats':
+      return <BeatsIcon active={active} />;
+    default:
+      return null;
+  }
+}
+
+function ModeIcon({ modeKey, active }: { modeKey: string; active: boolean }) {
+  switch (modeKey) {
+    case 'normal':
+      return <NormalModeIcon active={active} />;
+    case 'alpha':
+      return <AlphaModeIcon active={active} />;
+    case 'theta':
+      return <ThetaModeIcon active={active} />;
+    case 'deep-eq':
+      return <DeepFocusEQIcon active={active} />;
+    default:
+      return null;
+  }
+}
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -334,7 +364,7 @@ export default function SettingsScreen() {
             <View key={ch.key} style={styles.mixerRow}>
               <View style={styles.channelInfo}>
                 <View style={[styles.iconWrapper, isChannelActive && styles.iconWrapperActive]}>
-                  {ch.renderIcon(isChannelActive)}
+                  <ChannelIcon channelKey={ch.key} active={isChannelActive} />
                 </View>
                 <Text style={[styles.channelLabel, isChannelActive && styles.channelLabelActive]}>
                   {ch.label}
@@ -485,7 +515,7 @@ export default function SettingsScreen() {
               >
                 <View style={styles.modeHeader}>
                   <View style={[styles.modeIconWrapper, isSelected && styles.modeIconWrapperActive]}>
-                    {mode.renderIcon(isSelected)}
+                    <ModeIcon modeKey={mode.key} active={isSelected} />
                   </View>
                   <View style={styles.modeTitleContainer}>
                     <Text style={[styles.modeLabel, isSelected && styles.modeSelectedText]}>
