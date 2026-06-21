@@ -1,7 +1,5 @@
-/**
- * Player Store — Manages music playback state and audio configurations
- */
 import { create } from 'zustand';
+import { audioService } from '../services/audio';
 
 export interface PlayerTrack {
   id: number;
@@ -75,11 +73,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       progress: 0,
       currentIndex: index >= 0 ? index : -1,
     });
+    audioService.playTrack(track);
   },
 
-  play: () => set({ isPlaying: true }),
-  pause: () => set({ isPlaying: false }),
-  togglePlayback: () => set((s) => ({ isPlaying: !s.isPlaying })),
+  play: () => {
+    set({ isPlaying: true });
+    audioService.resume();
+  },
+
+  pause: () => {
+    set({ isPlaying: false });
+    audioService.pause();
+  },
+
+  togglePlayback: () => {
+    const isPlaying = get().isPlaying;
+    set({ isPlaying: !isPlaying });
+    if (isPlaying) {
+      audioService.pause();
+    } else {
+      audioService.resume();
+    }
+  },
 
   setProgress: (progress) => set({ progress }),
 
@@ -89,45 +104,64 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, currentIndex } = get();
     if (queue.length === 0) return;
     const nextIndex = (currentIndex + 1) % queue.length;
+    const track = queue[nextIndex];
     set({
-      currentTrack: queue[nextIndex],
+      currentTrack: track,
       currentIndex: nextIndex,
       isPlaying: true,
       progress: 0,
     });
+    audioService.playTrack(track);
   },
 
   previousTrack: () => {
     const { queue, currentIndex } = get();
     if (queue.length === 0) return;
     const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
+    const track = queue[prevIndex];
     set({
-      currentTrack: queue[prevIndex],
+      currentTrack: track,
       currentIndex: prevIndex,
       isPlaying: true,
       progress: 0,
     });
+    audioService.playTrack(track);
   },
 
   setActiveCategory: (category) => set({ activeCategory: category }),
 
-  clearPlayer: () =>
+  clearPlayer: () => {
     set({
       currentTrack: null,
       isPlaying: false,
       progress: 0,
       currentIndex: -1,
-    }),
+    });
+    audioService.stopTrack();
+  },
 
   // Preferences
-  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
-  setAudioMode: (audioMode) => set({ audioMode }),
-  setMixerVolume: (channel, level) =>
+  setPlaybackSpeed: (playbackSpeed) => {
+    set({ playbackSpeed });
+    audioService.applySpeed(playbackSpeed);
+  },
+
+  setAudioMode: (audioMode) => {
+    set({ audioMode });
+    audioService.applyAudioModeEffects(audioMode);
+  },
+
+  setMixerVolume: (channel, level) => {
     set((s) => ({
       mixerVolumes: { ...s.mixerVolumes, [channel]: level },
-    })),
-  resetMixer: () =>
+    }));
+    audioService.setMixerVolume(channel, level);
+  },
+
+  resetMixer: () => {
     set({
       mixerVolumes: { rain: 0, birds: 0, cafe: 0, beats: 0 },
-    }),
+    });
+    audioService.resetMixer();
+  },
 }));

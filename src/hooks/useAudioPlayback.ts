@@ -2,8 +2,10 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../stores/usePlayerStore';
 
 /**
- * Hook to simulate audio playback progress in the UI.
- * Advances track progress every second and triggers next track when completed.
+ * Hook to manage audio playback progress.
+ * If the current track is a Custom Mix (which has no single backing MP3),
+ * it runs a simulated timer to advance progress. For actual audio files,
+ * it lets expo-av update progress natively.
  */
 export function useAudioPlayback() {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -14,8 +16,11 @@ export function useAudioPlayback() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (isPlaying && currentTrack) {
-      const duration = currentTrack.duration || 300; // default 5 mins
+    // Only run simulated progress for Custom Mixes (ID 1000 to 4999)
+    const isCustomMix = currentTrack && currentTrack.id >= 1000 && currentTrack.id < 5000;
+
+    if (isPlaying && currentTrack && isCustomMix) {
+      const duration = currentTrack.duration || 1800; // default 30 mins
       const step = 1 / duration;
 
       intervalRef.current = setInterval(() => {

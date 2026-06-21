@@ -27,7 +27,7 @@ function toPlayerTrack(track: (typeof BUNDLED_TRACKS)[number], index: number): P
     id: index + 1,
     title: track.title,
     artist: track.artist,
-    uri: '',
+    uri: track.uri,
     artwork: track.artwork,
     duration: track.duration_sec,
     category: track.category,
@@ -113,11 +113,35 @@ export default function MusicScreen() {
 
   // Handle track press: set queue context + play, or toggle if already playing
   const handleTrackPress = useCallback(
-    (track: PlayerTrack) => {
+    async (track: PlayerTrack) => {
       if (currentTrack?.id === track.id) {
         usePlayerStore.getState().togglePlayback();
         return;
       }
+
+      // If it is a custom mix, load its configuration from SQLite
+      if (track.category === 'custom' && track.id >= 1000 && track.id < 5000) {
+        try {
+          const dbId = track.id - 1000;
+          const mixes = await db.getCustomMixes();
+          const targetMix = mixes.find((m) => m.id === dbId);
+          if (targetMix) {
+            const config = JSON.parse(targetMix.mix_config);
+            
+            // Set track state to active and start playback
+            usePlayerStore.setState({ isPlaying: true, currentTrack: track });
+            
+            // Apply volume configs
+            for (const ch of Object.keys(config)) {
+              usePlayerStore.getState().setMixerVolume(ch, config[ch]);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to apply custom mix:', e);
+        }
+      }
+
       setQueue(filteredTracks);
       setTrack(track);
     },

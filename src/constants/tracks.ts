@@ -11,6 +11,7 @@ export interface BundledTrack {
   category: TrackCategory;
   duration_sec: number;
   artwork: ReturnType<typeof require>;
+  uri: string;
 }
 
 export const BUNDLED_TRACKS: BundledTrack[] = [
@@ -20,6 +21,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'ambient',
     duration_sec: 300,
     artwork: require('../../assets/images/tracks/deep_focus.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
   },
   {
     title: 'Rainfall',
@@ -27,6 +29,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'nature',
     duration_sec: 360,
     artwork: require('../../assets/images/tracks/rainfall.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
   },
   {
     title: 'Ocean Waves',
@@ -34,6 +37,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'nature',
     duration_sec: 420,
     artwork: require('../../assets/images/tracks/ocean_waves.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
   },
   {
     title: 'Morning Birds',
@@ -41,6 +45,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'nature',
     duration_sec: 300,
     artwork: require('../../assets/images/tracks/morning_birds.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
   },
   {
     title: 'Café Ambience',
@@ -48,6 +53,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'lofi',
     duration_sec: 480,
     artwork: require('../../assets/images/tracks/cafe_ambience.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
   },
   {
     title: 'Cosmic Drift',
@@ -55,6 +61,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     category: 'ambient',
     duration_sec: 540,
     artwork: require('../../assets/images/tracks/cosmic_drift.jpg'),
+    uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
   },
 ];
 
