@@ -1,35 +1,45 @@
 /**
- * Music Screen — Sound Library tab
+ * Music Screen — Sound Library tab with Custom Ambient Sound Mixer
  */
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
+  Pressable,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, FontSize } from '../../constants/colors';
-import { BUNDLED_TRACKS, CATEGORIES, type TrackCategory } from '../../constants/tracks';
+import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/colors';
+import { BUNDLED_TRACKS, CATEGORIES, DEFAULT_ARTWORK } from '../../constants/tracks';
 import { usePlayerStore, type PlayerTrack } from '../../stores/usePlayerStore';
 import CategoryChips from '../../components/music/CategoryChips';
 import TrackCard from '../../components/music/TrackCard';
 import MiniPlayer from '../../components/music/MiniPlayer';
+import * as db from '../../services/database';
 
-/** Convert bundled track data to PlayerTrack format used by the store */
+const CHANNELS = [
+  { key: 'rain', label: 'Rain Sound', icon: '🌧️' },
+  { key: 'birds', label: 'Forest Birds', icon: '🐦' },
+  { key: 'cafe', label: 'Café Chatter', icon: '☕' },
+  { key: 'beats', label: 'Binaural Waves', icon: '🧘' },
+];
+
 function toPlayerTrack(track: (typeof BUNDLED_TRACKS)[number], index: number): PlayerTrack {
   return {
     id: index + 1,
     title: track.title,
     artist: track.artist,
-    uri: '', // bundled tracks don't have a URI yet
+    uri: '',
     artwork: track.artwork,
     duration: track.duration_sec,
     category: track.category,
   };
 }
 
-/** Format total duration for header stats */
 function formatTotalDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   return `${m} min`;
@@ -45,6 +55,42 @@ export default function MusicScreen() {
   const setTrack = usePlayerStore((s) => s.setTrack);
   const setQueue = usePlayerStore((s) => s.setQueue);
 
+  // Mixer states
+  const [isMixerOpen, setIsMixerOpen] = useState(false);
+  const [mixName, setMixName] = useState('');
+  const [volumes, setVolumes] = useState<Record<string, number>>({
+    rain: 0,
+    birds: 0,
+    cafe: 0,
+    beats: 0,
+  });
+
+  // Custom mixes from DB
+  const [savedMixes, setSavedMixes] = useState<PlayerTrack[]>([]);
+
+  // Load custom mixes
+  const loadSavedMixes = useCallback(async () => {
+    try {
+      const mixes = await db.getCustomMixes();
+      const mapped: PlayerTrack[] = mixes.map((m) => ({
+        id: 1000 + m.id,
+        title: m.name,
+        artist: 'My Custom Mix',
+        uri: '',
+        artwork: DEFAULT_ARTWORK,
+        duration: 1800, // 30 minutes simulated loop
+        category: 'custom',
+      }));
+      setSavedMixes(mapped);
+    } catch (e) {
+      console.warn('Failed to load custom mixes', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSavedMixes();
+  }, [loadSavedMixes]);
+
   // Build full player-track list from bundled data
   const allTracks = useMemo(
     () => BUNDLED_TRACKS.map(toPlayerTrack),
@@ -53,9 +99,10 @@ export default function MusicScreen() {
 
   // Filter by active category
   const filteredTracks = useMemo(() => {
+    if (activeCategory === 'custom') return savedMixes;
     if (activeCategory === 'all') return allTracks;
     return allTracks.filter((t) => t.category === activeCategory);
-  }, [allTracks, activeCategory]);
+  }, [allTracks, activeCategory, savedMixes]);
 
   // Handle category selection
   const handleCategorySelect = useCallback(
@@ -78,15 +125,62 @@ export default function MusicScreen() {
     [currentTrack, filteredTracks, setQueue, setTrack],
   );
 
+  const handleVolumeChange = (channel: string, level: number) => {
+    setVolumes((prev) => ({ ...prev, [channel]: level }));
+  };
+
+  const handleSaveMix = async () => {
+    if (!mixName.trim()) return;
+    try {
+      const config = JSON.stringify(volumes);
+      await db.saveCustomMix(mixName, config);
+      setMixName('');
+      setVolumes({ rain: 0, birds: 0, cafe: 0, beats: 0 });
+      setIsMixerOpen(false);
+      loadSavedMixes();
+      setActiveCategory('custom'); // Switch filter to custom category
+    } catch (e) {
+      console.warn('Failed to save mix', e);
+    }
+  };
+
+  const handleDeleteMix = async (trackId: number) => {
+    try {
+      const dbId = trackId - 1000;
+      await db.deleteCustomMix(dbId);
+      loadSavedMixes();
+      if (currentTrack?.id === trackId) {
+        usePlayerStore.getState().clearPlayer();
+      }
+    } catch (e) {
+      console.warn('Failed to delete mix', e);
+    }
+  };
+
   const renderTrack = useCallback(
-    ({ item }: { item: PlayerTrack }) => (
-      <TrackCard
-        track={item}
-        isPlaying={currentTrack?.id === item.id && isPlaying}
-        onPress={() => handleTrackPress(item)}
-      />
-    ),
-    [currentTrack, isPlaying, handleTrackPress],
+    ({ item }: { item: PlayerTrack }) => {
+      const isCurrent = currentTrack?.id === item.id;
+      return (
+        <View style={styles.trackCardRow}>
+          <View style={{ flex: 1 }}>
+            <TrackCard
+              track={item}
+              isPlaying={isCurrent && isPlaying}
+              onPress={() => handleTrackPress(item)}
+            />
+          </View>
+          {item.category === 'custom' && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteMix(item.id)}
+            >
+              <Text style={styles.deleteButtonText}>×</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    },
+    [currentTrack, isPlaying, handleTrackPress, loadSavedMixes]
   );
 
   const keyExtractor = useCallback((item: PlayerTrack) => String(item.id), []);
@@ -95,13 +189,31 @@ export default function MusicScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Sound Library</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''} ·{' '}
-          {formatTotalDuration(
-            filteredTracks.reduce((sum, t) => sum + t.duration, 0),
-          )}
-        </Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>Sound Library</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''} ·{' '}
+              {formatTotalDuration(
+                filteredTracks.reduce((sum, t) => sum + t.duration, 0),
+              )}
+            </Text>
+          </View>
+
+          {/* Toggle Mixer Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.mixerToggle,
+              isMixerOpen && styles.mixerToggleActive,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setIsMixerOpen(!isMixerOpen)}
+          >
+            <Text style={styles.mixerToggleText}>
+              {isMixerOpen ? 'Close Mixer' : '🎛️ Ambient Mixer'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Category filter */}
@@ -110,6 +222,63 @@ export default function MusicScreen() {
         activeCategory={activeCategory}
         onSelect={handleCategorySelect}
       />
+
+      {/* Mixer Panel */}
+      {isMixerOpen && (
+        <View style={styles.mixerConsole}>
+          <Text style={styles.mixerTitle}>Create Custom Ambient Mix</Text>
+          
+          {CHANNELS.map((ch) => (
+            <View key={ch.key} style={styles.mixerRow}>
+              <View style={styles.channelInfo}>
+                <Text style={styles.channelIcon}>{ch.icon}</Text>
+                <Text style={styles.channelLabel}>{ch.label}</Text>
+              </View>
+
+              <View style={styles.swatchContainer}>
+                {[0, 1, 2, 3, 4].map((level) => {
+                  const isActive = volumes[ch.key] >= level;
+                  return (
+                    <Pressable
+                      key={level}
+                      style={[
+                        styles.swatch,
+                        isActive && styles.swatchActive,
+                        level === 0 && { borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
+                        level === 4 && { borderTopRightRadius: 6, borderBottomRightRadius: 6 },
+                      ]}
+                      onPress={() => handleVolumeChange(ch.key, level)}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          {/* Mix Name Input */}
+          <View style={styles.saveContainer}>
+            <TextInput
+              style={styles.mixerInput}
+              placeholder="Name your ambient mix..."
+              placeholderTextColor={Colors.textMuted}
+              value={mixName}
+              onChangeText={setMixName}
+              maxLength={25}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.mixerSaveButton,
+                !mixName.trim() && styles.mixerSaveDisabled,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleSaveMix}
+              disabled={!mixName.trim()}
+            >
+              <Text style={styles.mixerSaveText}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* Track list */}
       <FlatList
@@ -122,7 +291,9 @@ export default function MusicScreen() {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>No tracks yet</Text>
             <Text style={styles.emptySubtitle}>
-              Tracks in this category will appear here
+              {activeCategory === 'custom'
+                ? 'Create a custom mix using the mixer at the top!'
+                : 'Tracks in this category will appear here'}
             </Text>
           </View>
         }
@@ -144,6 +315,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xs,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTitle: {
     fontSize: FontSize.xxl,
     fontWeight: '700',
@@ -155,6 +331,125 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
+  mixerToggle: {
+    backgroundColor: Colors.surface,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  mixerToggleActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryMuted,
+  },
+  mixerToggleText: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
+  mixerConsole: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  mixerTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
+  },
+  mixerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  channelInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  channelIcon: {
+    fontSize: FontSize.lg,
+    marginRight: Spacing.sm,
+  },
+  channelLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: '500',
+  },
+  swatchContainer: {
+    flexDirection: 'row',
+    height: 24,
+    width: 140,
+    backgroundColor: Colors.surfaceHighlight,
+    borderRadius: 6,
+  },
+  swatch: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderRightWidth: 1,
+    borderRightColor: Colors.surface,
+  },
+  swatchActive: {
+    backgroundColor: Colors.primary,
+  },
+  saveContainer: {
+    flexDirection: 'row',
+    marginTop: Spacing.xs,
+  },
+  mixerInput: {
+    flex: 1,
+    backgroundColor: Colors.surfaceHighlight,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    color: Colors.textPrimary,
+    fontSize: FontSize.sm,
+    height: 40,
+  },
+  mixerSaveButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+    height: 40,
+  },
+  mixerSaveDisabled: {
+    backgroundColor: Colors.surfaceHighlight,
+    opacity: 0.5,
+  },
+  mixerSaveText: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+  },
+  trackCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: Spacing.sm,
+    marginRight: Spacing.md,
+    backgroundColor: Colors.error + '15',
+    borderRadius: BorderRadius.sm,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: Colors.error,
+    fontSize: 20,
+    fontWeight: '300',
+    marginTop: -3,
+  },
   listContent: {
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xl,
@@ -163,6 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.xxl * 2,
+    paddingHorizontal: Spacing.xl,
   },
   emptyTitle: {
     fontSize: FontSize.lg,
@@ -173,5 +469,10 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

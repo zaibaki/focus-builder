@@ -18,6 +18,7 @@ interface BlockState {
   isLoading: boolean;
   showOverlay: boolean;
   overlayAppName: string | null;
+  overlayPackageName: string | null;
 
   // Actions
   loadBlockedApps: () => Promise<void>;
@@ -25,7 +26,7 @@ interface BlockState {
   toggleApp: (packageName: string) => Promise<void>;
   removeApp: (packageName: string) => Promise<void>;
   setBlockingActive: (active: boolean) => void;
-  triggerBlockOverlay: (appName: string) => void;
+  triggerBlockOverlay: (appName: string, packageName: string) => void;
   dismissBlockOverlay: () => void;
 }
 
@@ -35,6 +36,7 @@ export const useBlockStore = create<BlockState>((set, get) => ({
   isLoading: false,
   showOverlay: false,
   overlayAppName: null,
+  overlayPackageName: null,
 
   loadBlockedApps: async () => {
     set({ isLoading: true });
@@ -72,6 +74,6 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 
   setBlockingActive: (active) => set({ isBlockingActive: active }),
 
-  triggerBlockOverlay: (appName) => set({ showOverlay: true, overlayAppName: appName }),
-  dismissBlockOverlay: () => set({ showOverlay: false, overlayAppName: null }),
+  triggerBlockOverlay: (appName, packageName) => set({ showOverlay: true, overlayAppName: appName, overlayPackageName: packageName }),
+  dismissBlockOverlay: () => set({ showOverlay: false, overlayAppName: null, overlayPackageName: null }),
 }));

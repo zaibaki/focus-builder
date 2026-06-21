@@ -51,10 +51,11 @@ async function initSchema(): Promise<void> {
     );
 
     CREATE TABLE IF NOT EXISTS session_blocked_attempts (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id   INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      package_name TEXT NOT NULL,
-      timestamp    INTEGER NOT NULL
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id     INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      package_name   TEXT NOT NULL,
+      timestamp      INTEGER NOT NULL,
+      bypass_granted INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS session_tracks (
@@ -77,10 +78,24 @@ async function initSchema(): Promise<void> {
       PRIMARY KEY (playlist_id, track_id)
     );
 
+    CREATE TABLE IF NOT EXISTS custom_mixes (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT NOT NULL,
+      mix_config   TEXT NOT NULL,
+      created_at   INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
     CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(start_time);
     CREATE INDEX IF NOT EXISTS idx_blocked_attempts_session ON session_blocked_attempts(session_id);
   `);
+
+  // Migrate existing tables if they don't have the bypass_granted column
+  try {
+    await db.execAsync('ALTER TABLE session_blocked_attempts ADD COLUMN bypass_granted INTEGER DEFAULT 0;');
+  } catch (e) {
+    // Column already exists, ignore error
+  }
 }
 
 // ─── Session Queries ─────────────────────────────────────────────
@@ -282,13 +297,14 @@ export async function getAllBlockedApps(): Promise<BlockedApp[]> {
 // ─── Block Attempt Logging ──────────────────────────────────────
 export async function logBlockAttempt(
   sessionId: number,
-  packageName: string
+  packageName: string,
+  bypassGranted: boolean = false
 ): Promise<void> {
   const database = await getDatabase();
   const now = Math.floor(Date.now() / 1000);
   await database.runAsync(
-    'INSERT INTO session_blocked_attempts (session_id, package_name, timestamp) VALUES (?, ?, ?)',
-    [sessionId, packageName, now]
+    'INSERT INTO session_blocked_attempts (session_id, package_name, timestamp, bypass_granted) VALUES (?, ?, ?, ?)',
+    [sessionId, packageName, now, bypassGranted ? 1 : 0]
   );
 }
 
@@ -317,4 +333,34 @@ export async function getWeeklyBlockAttempts(
     [weekStartEpoch, weekEnd]
   );
   return result?.count ?? 0;
+}
+
+// ─── Custom Mixes Queries ────────────────────────────────────────
+export interface CustomMix {
+  id: number;
+  name: string;
+  mix_config: string;
+  created_at: number;
+}
+
+export async function saveCustomMix(name: string, mixConfig: string): Promise<number> {
+  const database = await getDatabase();
+  const now = Math.floor(Date.now() / 1000);
+  const result = await database.runAsync(
+    'INSERT INTO custom_mixes (name, mix_config, created_at) VALUES (?, ?, ?)',
+    [name, mixConfig, now]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getCustomMixes(): Promise<CustomMix[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<CustomMix>(
+    'SELECT * FROM custom_mixes ORDER BY created_at DESC'
+  );
+}
+
+export async function deleteCustomMix(id: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM custom_mixes WHERE id = ?', [id]);
 }

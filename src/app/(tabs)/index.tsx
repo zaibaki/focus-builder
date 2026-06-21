@@ -64,12 +64,7 @@ export default function TimerScreen() {
       pkgName = blocked[0].packageName;
     }
     
-    const sessId = useTimerStore.getState().sessionId;
-    if (sessId) {
-      await db.logBlockAttempt(sessId, pkgName);
-    }
-    
-    useBlockStore.getState().triggerBlockOverlay(appName);
+    useBlockStore.getState().triggerBlockOverlay(appName, pkgName);
   };
 
   // Timer tick
