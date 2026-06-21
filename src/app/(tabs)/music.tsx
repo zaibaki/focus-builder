@@ -258,8 +258,8 @@ export default function MusicScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={{ flex: 1, marginRight: Spacing.sm }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>Sound Library</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Sound Library</Text>
             <Text style={styles.headerSubtitle}>
               {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''} ·{' '}
               {formatTotalDuration(
@@ -268,34 +268,19 @@ export default function MusicScreen() {
             </Text>
           </View>
 
-          <View style={styles.buttonRow}>
-            {/* Toggle Mixer Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.mixerToggle,
-                isMixerOpen && styles.mixerToggleActive,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => setIsMixerOpen(!isMixerOpen)}
-            >
-              <Text style={styles.mixerToggleText}>
-                {isMixerOpen ? 'Mixer' : '🎛️ Mixer'}
-              </Text>
-            </Pressable>
-
-            {/* Import Audio Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.mixerToggle,
-                pressed && styles.pressed,
-              ]}
-              onPress={handleImportAudio}
-            >
-              <Text style={styles.mixerToggleText}>
-                📥 Import
-              </Text>
-            </Pressable>
-          </View>
+          {/* Toggle Mixer Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.mixerToggle,
+              isMixerOpen && styles.mixerToggleActive,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setIsMixerOpen(!isMixerOpen)}
+          >
+            <Text style={styles.mixerToggleText}>
+              {isMixerOpen ? 'Close Mixer' : '🎛️ Ambient Mixer'}
+            </Text>
+          </Pressable>
         </View>
       </View>
 
@@ -382,6 +367,17 @@ export default function MusicScreen() {
         }
       />
 
+      {/* Floating Action Button for importing */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.fab,
+          pressed && styles.pressed,
+        ]}
+        onPress={handleImportAudio}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </Pressable>
+
       {/* Mini player */}
       <MiniPlayer />
     </View>
@@ -404,7 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: FontSize.xxl - 2,
+    fontSize: FontSize.xxl,
     fontWeight: '700',
     color: Colors.textPrimary,
     letterSpacing: -0.5,
@@ -413,10 +409,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
   },
   mixerToggle: {
     backgroundColor: Colors.surface,
@@ -561,5 +553,28 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 86,
+    right: Spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+    zIndex: 99,
+  },
+  fabIcon: {
+    color: Colors.textPrimary,
+    fontSize: 32,
+    fontWeight: '300',
+    marginTop: -2,
   },
 });
