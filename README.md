@@ -15,12 +15,10 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 *   **Soothing Animated Background**: When music is playing, the screen background displays the current track's artwork softly faded and animated in a slow, soothing Ken Burns pan/zoom effect to create an immersive focus environment.
 *   **Distraction Simulator**: Run a simulated distraction interception when a session is active to test the app blocker functionality and record stats.
 
-### 2. 🎵 Sound Library & Ambient Mixer
+### 2. 🎵 Sound Library & Track Importer
 *   **Curated Tracks**: Pre-seeded background tracks (e.g., Deep Focus, Rainfall, Ocean Waves, Café Ambience, birds, and cosmic ambient loops).
 *   **Category Filters**: Swiftly browse tracks through horizontal chip filters (All, Ambient, Nature, Lo-Fi, White Noise, My Tracks).
 *   **Track Importer**: Choose and import local audio files (MP3, WAV, etc.) using `expo-document-picker`. The files are copied into the app's sandboxed document directory and registered in SQLite.
-*   **Ambient Sound Mixer**: Collapsible mixing board allowing users to blend volume levels of 4 sound channels (Rain, Birds, Café, Binaural beats) using custom volume swatches.
-*   **Mix Seeding**: Save custom ambient mixes to SQLite database. They instantly appear and are playable in the "My Tracks" library.
 *   **Persistent Mini Player**: Pinned bottom playback bar displaying current track artwork, title, playback controls, and a reactive progress bar.
 *   **Auto-Advance**: Queue-based player that automatically advances to the next track when the current one finishes.
 
@@ -37,6 +35,12 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 *   **Guild Achievements**: Dynamic badge achievement grid (🌱 *First Flow*, ⚔️ *Focus Knight*, 🛡️ *Iron Shield*, 🔥 *Unstoppable*, 🧘 *Zen Master*, and 📅 *Consistent*) that unlocks automatically based on your SQLite session stats.
 *   **Detailed History**: Chronological log of recent focus sessions, complete with actual/target durations and completion badges (Completed / Abandoned).
 *   **Pull-to-Refresh**: Refresh stats from SQLite database instantly.
+
+### 5. ⚙️ Preferences & Audio Configurations (Settings Screen)
+*   **Ambient Sound Mixer**: Interactive mixing board allowing users to blend volume levels of 4 sound channels (Rain, Birds, Café, Binaural waves) and save named configurations to SQLite.
+*   **Playback Speed Selector**: Speed modulator chips (0.5x, 0.8x, 1.0x, 1.25x, 1.5x) to speed up or slow down nature loops and audio beats.
+*   **Focus Brainwave Frequencies**: Inject binaural frequencies (Normal, 10Hz Alpha Waves, 5Hz Theta Waves, Deep EQ Focus) to optimize cognitive concentration.
+*   **System Diagnostics**: Perform SQLite database purge resets to wipe sessions, blocked list, custom mixes, and reset character profiles.
 
 ---
 
@@ -103,6 +107,7 @@ src/
 │   │   ├── music.tsx             # Sound Library Screen
 │   │   ├── blocklist.tsx         # App Blocker Screen
 │   │   ├── stats.tsx             # Analytics Screen
+│   │   ├── settings.tsx          # Preferences & Audio Screen
 │   │   └── _layout.tsx           # Tab Navigator styling
 │   └── _layout.tsx               # Providers & DB initialization
 ├── components/                   # Sub-feature UI components
