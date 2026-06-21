@@ -14,13 +14,20 @@ export interface BundledTrack {
   uri: string;
 }
 
+export const CATEGORY_ARTWORK = {
+  ambient: require('../../assets/images/categories/ambient.jpg'),
+  nature: require('../../assets/images/categories/nature.jpg'),
+  lofi: require('../../assets/images/categories/lofi.jpg'),
+  white_noise: require('../../assets/images/categories/white_noise.jpg'),
+} as const;
+
 export const BUNDLED_TRACKS: BundledTrack[] = [
   {
     title: 'Deep Focus',
     artist: 'Focus App',
     category: 'ambient',
     duration_sec: 300,
-    artwork: require('../../assets/images/tracks/deep_focus.jpg'),
+    artwork: CATEGORY_ARTWORK.ambient,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
   },
   {
@@ -28,7 +35,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     artist: 'Focus App',
     category: 'nature',
     duration_sec: 360,
-    artwork: require('../../assets/images/tracks/rainfall.jpg'),
+    artwork: CATEGORY_ARTWORK.nature,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
   },
   {
@@ -36,7 +43,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     artist: 'Focus App',
     category: 'nature',
     duration_sec: 420,
-    artwork: require('../../assets/images/tracks/ocean_waves.jpg'),
+    artwork: CATEGORY_ARTWORK.nature,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
   },
   {
@@ -44,7 +51,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     artist: 'Focus App',
     category: 'nature',
     duration_sec: 300,
-    artwork: require('../../assets/images/tracks/morning_birds.jpg'),
+    artwork: CATEGORY_ARTWORK.nature,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
   },
   {
@@ -52,7 +59,7 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     artist: 'Focus App',
     category: 'lofi',
     duration_sec: 480,
-    artwork: require('../../assets/images/tracks/cafe_ambience.jpg'),
+    artwork: CATEGORY_ARTWORK.lofi,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
   },
   {
@@ -60,17 +67,10 @@ export const BUNDLED_TRACKS: BundledTrack[] = [
     artist: 'Focus App',
     category: 'ambient',
     duration_sec: 540,
-    artwork: require('../../assets/images/tracks/cosmic_drift.jpg'),
+    artwork: CATEGORY_ARTWORK.ambient,
     uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
   },
 ];
-
-export const CATEGORY_ARTWORK = {
-  ambient: require('../../assets/images/categories/ambient.jpg'),
-  nature: require('../../assets/images/categories/nature.jpg'),
-  lofi: require('../../assets/images/categories/lofi.jpg'),
-  white_noise: require('../../assets/images/categories/white_noise.jpg'),
-} as const;
 
 export const DEFAULT_ARTWORK = require('../../assets/images/tracks/default_artwork.jpg');
 

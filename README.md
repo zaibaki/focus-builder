@@ -4,6 +4,32 @@ A premium, feature-rich **React Native** application designed to help users conc
 
 The app features a sleek dark-themed interface built using Expo, TypeScript, Zustand, and SQLite for 100% offline local data persistence.
 
+## 🎥 Demo & Gallery
+
+### 📱 App Demo Video
+Check out the app in action:
+
+<video src="media_output/recording.webm" width="100%" height="auto" controls></video>
+
+### 📸 Screenshots
+Here is a gallery of the premium dark-themed interface:
+
+<p align="center">
+  <img src="media_output/Screenshot_20260621_183654.png" width="30%" alt="Focus Timer" />
+  <img src="media_output/Screenshot_20260621_183724.png" width="30%" alt="Sound Library" />
+  <img src="media_output/Screenshot_20260621_183759.png" width="30%" alt="App Blocker" />
+</p>
+<p align="center">
+  <img src="media_output/Screenshot_20260621_183822.png" width="30%" alt="Mindfulness Intercept" />
+  <img src="media_output/Screenshot_20260621_183843.png" width="30%" alt="Analytics" />
+  <img src="media_output/Screenshot_20260621_183900.png" width="30%" alt="Preferences" />
+</p>
+<p align="center">
+  <img src="media_output/Screenshot_20260621_183914.png" width="30%" alt="Achievements" />
+  <img src="media_output/Screenshot_20260621_183937.png" width="30%" alt="Settings" />
+  <img src="media_output/Screenshot_20260621_183947.png" width="30%" alt="DB Purge" />
+</p>
+
 ---
 
 ## 📱 Features
@@ -13,7 +39,7 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 *   **Presets & Customization**: Presets for 15m, 25m, 45m, 60m, and 90m focus sessions, alongside custom tags/labels (e.g. "Coding", "Writing").
 *   **Full Timer Control**: Smooth flow transitioning between *Start*, *Pause*, *Resume*, and *Give Up* actions.
 *   **Soothing Animated Background**: When music is playing, the screen background displays the current track's artwork softly faded and animated in a slow, soothing Ken Burns pan/zoom effect to create an immersive focus environment.
-*   **Distraction Simulator**: Run a simulated distraction interception when a session is active to test the app blocker functionality and record stats.
+*   **Real-time Blocker Integration**: Intercepts distracting apps natively when a session is active and logs block events.
 
 ### 2. 🎵 Sound Library & Track Importer
 *   **Curated Tracks**: Pre-seeded background tracks (e.g., Deep Focus, Rainfall, Ocean Waves, Café Ambience, birds, and cosmic ambient loops).

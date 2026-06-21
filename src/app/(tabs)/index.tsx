@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
   Animated,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircularProgress } from '../../components/timer/CircularProgress';
@@ -17,6 +18,7 @@ import { useTimerStore } from '../../stores/useTimerStore';
 import { useBlockStore } from '../../stores/useBlockStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 import * as db from '../../services/database';
+import { VISUAL_THEMES } from '../../constants/themes';
 import {
   Colors,
   Spacing,
@@ -47,14 +49,18 @@ export default function TimerScreen() {
     elapsed,
     label,
     presets,
+    selectedThemeId,
     setTargetDuration,
     setLabel,
+    setSelectedThemeId,
     startSession,
     pauseSession,
     resumeSession,
     abandonSession,
     tick,
   } = useTimerStore();
+
+  const selectedTheme = VISUAL_THEMES.find((t) => t.id === selectedThemeId) || VISUAL_THEMES[0];
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -65,7 +71,7 @@ export default function TimerScreen() {
 
   useEffect(() => {
     let animationLoop: Animated.CompositeAnimation | null = null;
-    if (isPlaying && currentTrack) {
+    if (isPlaying || isRunning) {
       animationLoop = Animated.loop(
         Animated.sequence([
           Animated.parallel([
@@ -105,20 +111,7 @@ export default function TimerScreen() {
         animationLoop.stop();
       }
     };
-  }, [isPlaying, currentTrack]);
-
-  const handleSimulateDistraction = async () => {
-    const blocked = useBlockStore.getState().blockedApps.filter(a => a.isActive);
-    let appName = 'Instagram';
-    let pkgName = 'com.instagram.android';
-    
-    if (blocked.length > 0) {
-      appName = blocked[0].displayName;
-      pkgName = blocked[0].packageName;
-    }
-    
-    useBlockStore.getState().triggerBlockOverlay(appName, pkgName);
-  };
+  }, [isPlaying, isRunning]);
 
   // Timer tick
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -145,25 +138,23 @@ export default function TimerScreen() {
 
   return (
     <View style={styles.root}>
-      {currentTrack && isPlaying && (
-        <View style={StyleSheet.absoluteFill}>
-          <Animated.Image
-            source={currentTrack.artwork}
-            style={[
-              styles.backgroundImage,
-              {
-                transform: [
-                  { scale: zoomAnim },
-                  { translateX: panAnim.x },
-                  { translateY: panAnim.y },
-                ],
-              },
-            ]}
-            resizeMode="cover"
-          />
-          <View style={styles.backgroundOverlay} />
-        </View>
-      )}
+      <View style={StyleSheet.absoluteFill}>
+        <Animated.Image
+          source={selectedTheme.image}
+          style={[
+            styles.backgroundImage,
+            {
+              transform: [
+                { scale: zoomAnim },
+                { translateX: panAnim.x },
+                { translateY: panAnim.y },
+              ],
+            },
+          ]}
+          resizeMode="cover"
+        />
+        <View style={styles.backgroundOverlay} />
+      </View>
 
       <ScrollView
         style={styles.scrollRoot}
@@ -222,6 +213,48 @@ export default function TimerScreen() {
             );
           })}
         </ScrollView>
+      )}
+
+      {/* ── Visual Theme Selector ─────────── */}
+      {isIdle && (
+        <View style={styles.themeSection}>
+          <Text style={styles.sectionTitle}>Visual Theme</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.themesRow}
+            style={styles.themesScroll}
+          >
+            {VISUAL_THEMES.map((theme) => {
+              const isSelected = selectedThemeId === theme.id;
+              return (
+                <Pressable
+                  key={theme.id}
+                  onPress={() => setSelectedThemeId(theme.id)}
+                  style={styles.themeCardContainer}
+                >
+                  <View
+                    style={[
+                      styles.themeCard,
+                      isSelected && styles.themeCardSelected,
+                    ]}
+                  >
+                    <Image
+                      source={theme.image}
+                      style={styles.themeThumbnail}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.themeTextOverlay}>
+                      <Text style={styles.themeCardText} numberOfLines={1}>
+                        {theme.name}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
 
       {/* ── Optional Label Input ──────────── */}
@@ -300,18 +333,7 @@ export default function TimerScreen() {
         )}
       </View>
 
-      {/* ── Simulation Button ────────────── */}
-      {isRunning && !isPaused && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.simulateButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={handleSimulateDistraction}
-        >
-          <Text style={styles.simulateButtonText}>Simulate Distraction App Open</Text>
-        </Pressable>
-      )}
+
     </ScrollView>
   </View>
   );
@@ -396,6 +418,70 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   chipTextSelected: {
+    color: Colors.textPrimary,
+  },
+
+  // Theme Selector Styles
+  themeSection: {
+    width: '100%',
+    marginVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: FontSize.sm - 1,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  themesScroll: {
+    flexGrow: 0,
+    marginBottom: Spacing.md,
+  },
+  themesRow: {
+    gap: Spacing.md,
+    paddingRight: Spacing.md,
+  },
+  themeCardContainer: {
+    alignItems: 'center',
+  },
+  themeCard: {
+    width: 90,
+    height: 65,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+    backgroundColor: Colors.surface,
+  },
+  themeCardSelected: {
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  themeThumbnail: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.7,
+  },
+  themeTextOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(10, 10, 26, 0.75)',
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+  },
+  themeCardText: {
+    fontSize: 10,
+    fontWeight: '600',
     color: Colors.textPrimary,
   },
 

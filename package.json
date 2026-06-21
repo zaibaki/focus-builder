@@ -29,7 +29,6 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-svg": "^15.15.5",
-    "react-native-track-player": "^4.1.2",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
     "zustand": "^5.0.14"
@@ -41,8 +40,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },

@@ -1,0 +1,7 @@
+expo.modules.appblocker.expo-app-blocker-pngs-0 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/build/generated/res/pngs/release
+expo.modules.appblocker.expo-app-blocker-resValues-1 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/build/generated/res/resValues/release
+expo.modules.appblocker.expo-app-blocker-mergeReleaseResources-2 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+expo.modules.appblocker.expo-app-blocker-mergeReleaseResources-3 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+expo.modules.appblocker.expo-app-blocker-release-4 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/build/intermediates/merged_res/release/mergeReleaseResources
+expo.modules.appblocker.expo-app-blocker-main-5 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/src/main/res
+expo.modules.appblocker.expo-app-blocker-release-6 /home/zaibaki/github_projects/focus/modules/expo-app-blocker/android/src/release/res

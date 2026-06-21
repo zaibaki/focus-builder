@@ -2,7 +2,7 @@
  * AppListItem — A single app row for the blocklist screen
  */
 import React, { useCallback } from 'react';
-import { View, Text, Switch, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Switch, StyleSheet, Pressable, Image } from 'react-native';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/colors';
 
 interface AppListItemProps {
@@ -10,10 +10,11 @@ interface AppListItemProps {
   packageName: string;
   isBlocked: boolean;
   onToggle: () => void;
-  color: string;
+  color?: string;
+  iconUri?: string | null;
 }
 
-export function AppListItem({ name, packageName, isBlocked, onToggle, color }: AppListItemProps) {
+export function AppListItem({ name, packageName, isBlocked, onToggle, color = Colors.primary, iconUri }: AppListItemProps) {
   const firstLetter = name.charAt(0).toUpperCase();
 
   const handleToggle = useCallback(() => {
@@ -29,9 +30,13 @@ export function AppListItem({ name, packageName, isBlocked, onToggle, color }: A
       ]}
       onPress={handleToggle}
     >
-      <View style={[styles.iconCircle, { backgroundColor: color + '25' }]}>
-        <Text style={[styles.iconLetter, { color }]}>{firstLetter}</Text>
-      </View>
+      {iconUri ? (
+        <Image source={{ uri: iconUri }} style={styles.appIcon} resizeMode="contain" />
+      ) : (
+        <View style={[styles.iconCircle, { backgroundColor: color + '25' }]}>
+          <Text style={[styles.iconLetter, { color }]}>{firstLetter}</Text>
+        </View>
+      )}
 
       <View style={styles.info}>
         <Text style={styles.appName} numberOfLines={1}>
@@ -71,6 +76,12 @@ const styles = StyleSheet.create({
   },
   containerPressed: {
     opacity: 0.85,
+  },
+  appIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: 'transparent',
   },
   iconCircle: {
     width: 44,

@@ -9,26 +9,14 @@ import {
   FlatList,
   StyleSheet,
   StatusBar,
+  AppState,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/colors';
-import { useBlockStore } from '../../stores/useBlockStore';
+import { useBlockStore, type InstalledAppItem } from '../../stores/useBlockStore';
 import { AppListItem } from '../../components/blocker/AppListItem';
-
-// ─── Hardcoded App Catalog ──────────────────────────────────────
-const APP_CATALOG = [
-  { name: 'Instagram', packageName: 'com.instagram.android', color: '#E4405F' },
-  { name: 'TikTok', packageName: 'com.zhiliaoapp.musically', color: '#00F2EA' },
-  { name: 'Twitter / X', packageName: 'com.twitter.android', color: '#1DA1F2' },
-  { name: 'Facebook', packageName: 'com.facebook.katana', color: '#1877F2' },
-  { name: 'YouTube', packageName: 'com.google.android.youtube', color: '#FF0000' },
-  { name: 'Reddit', packageName: 'com.reddit.frontpage', color: '#FF4500' },
-  { name: 'Snapchat', packageName: 'com.snapchat.android', color: '#FFFC00' },
-  { name: 'WhatsApp', packageName: 'com.whatsapp', color: '#25D366' },
-  { name: 'Telegram', packageName: 'org.telegram.messenger', color: '#0088CC' },
-  { name: 'Discord', packageName: 'com.discord', color: '#5865F2' },
-] as const;
 
 // ─── Shield Icon SVG ────────────────────────────────────────────
 function ShieldIcon({ size = 28, color = Colors.primary }: { size?: number; color?: string }) {
@@ -74,12 +62,38 @@ function SearchIcon() {
 }
 
 export default function BlocklistScreen() {
-  const { blockedApps, loadBlockedApps, addApp, removeApp } = useBlockStore();
+  const {
+    blockedApps,
+    installedApps,
+    hasPermission,
+    hasOverlayPermission,
+    loadBlockedApps,
+    loadInstalledApps,
+    checkPermission,
+    requestPermission,
+    requestOverlayPermission,
+    addApp,
+    removeApp,
+  } = useBlockStore();
+
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadBlockedApps();
-  }, []);
+    loadInstalledApps();
+    checkPermission();
+
+    // Check permission status when user returns from settings page
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkPermission();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [loadBlockedApps, loadInstalledApps, checkPermission]);
 
   // Set of blocked package names for quick lookup
   const blockedSet = useMemo(() => {
@@ -90,14 +104,14 @@ export default function BlocklistScreen() {
 
   // Filter catalog by search query
   const filteredApps = useMemo(() => {
-    if (!search.trim()) return APP_CATALOG;
+    if (!search.trim()) return installedApps;
     const q = search.toLowerCase().trim();
-    return APP_CATALOG.filter(
+    return installedApps.filter(
       (app) =>
-        app.name.toLowerCase().includes(q) ||
+        app.displayName.toLowerCase().includes(q) ||
         app.packageName.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [installedApps, search]);
 
   const handleToggle = useCallback(
     async (packageName: string, name: string, isCurrentlyBlocked: boolean) => {
@@ -111,15 +125,15 @@ export default function BlocklistScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: (typeof APP_CATALOG)[number] }) => {
+    ({ item }: { item: InstalledAppItem }) => {
       const isBlocked = blockedSet.has(item.packageName);
       return (
         <AppListItem
-          name={item.name}
+          name={item.displayName}
           packageName={item.packageName}
           isBlocked={isBlocked}
-          onToggle={() => handleToggle(item.packageName, item.name, isBlocked)}
-          color={item.color}
+          onToggle={() => handleToggle(item.packageName, item.displayName, isBlocked)}
+          iconUri={item.icon}
         />
       );
     },
@@ -127,7 +141,7 @@ export default function BlocklistScreen() {
   );
 
   const keyExtractor = useCallback(
-    (item: (typeof APP_CATALOG)[number]) => item.packageName,
+    (item: InstalledAppItem) => item.packageName,
     []
   );
 
@@ -150,6 +164,49 @@ export default function BlocklistScreen() {
                 Block distracting apps during focus sessions
               </Text>
             </View>
+
+            {/* Permission Request Banner (Usage Access) */}
+            {!hasPermission && (
+              <View style={styles.permissionCard}>
+                <View style={styles.permissionInfo}>
+                  <Text style={styles.permissionTitle}>Usage Access Needed</Text>
+                  <Text style={styles.permissionSubtitle}>
+                    To detect and intercept distracting apps during focus sessions, the app requires Usage Stats access.
+                  </Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.permissionButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={requestPermission}
+                >
+                  <Text style={styles.permissionButtonText}>Grant Access</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Overlay Permission Request Banner */}
+            {!hasOverlayPermission && (
+              <View style={[styles.permissionCard, { backgroundColor: Colors.accent + '15', borderColor: Colors.accent + '30' }]}>
+                <View style={styles.permissionInfo}>
+                  <Text style={[styles.permissionTitle, { color: Colors.accent }]}>Display Over Other Apps Needed</Text>
+                  <Text style={styles.permissionSubtitle}>
+                    To overlay the focus integrity screen on top of distracting apps on Android 10+, please grant the Draw Over Other Apps permission.
+                  </Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.permissionButton,
+                    { backgroundColor: Colors.accent },
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={requestOverlayPermission}
+                >
+                  <Text style={[styles.permissionButtonText, { color: Colors.textPrimary }]}>Grant Permission</Text>
+                </Pressable>
+              </View>
+            )}
 
             {/* Status Card */}
             <View
@@ -191,7 +248,9 @@ export default function BlocklistScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No apps match your search</Text>
+            <Text style={styles.emptyText}>
+              {installedApps.length === 0 ? 'Loading applications...' : 'No apps match your search'}
+            </Text>
           </View>
         }
       />
@@ -222,6 +281,44 @@ const styles = StyleSheet.create({
   subtitle: {
     color: Colors.textSecondary,
     fontSize: FontSize.md,
+  },
+  permissionCard: {
+    backgroundColor: Colors.warning + '15',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.warning + '30',
+  },
+  permissionInfo: {
+    marginBottom: Spacing.md,
+  },
+  permissionTitle: {
+    color: Colors.warning,
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  permissionSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm + 1,
+    lineHeight: 20,
+  },
+  permissionButton: {
+    backgroundColor: Colors.warning,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    shadowColor: Colors.warning,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  permissionButtonText: {
+    color: Colors.textInverse,
+    fontSize: FontSize.md,
+    fontWeight: '700',
   },
   statusCard: {
     flexDirection: 'row',
@@ -275,5 +372,9 @@ const styles = StyleSheet.create({
   emptyText: {
     color: Colors.textMuted,
     fontSize: FontSize.md,
+  },
+  buttonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
 });

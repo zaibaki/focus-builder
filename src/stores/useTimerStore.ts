@@ -3,6 +3,8 @@
  */
 import { create } from 'zustand';
 import * as db from '../services/database';
+import ExpoAppBlocker from '../../modules/expo-app-blocker/src/ExpoAppBlockerModule';
+import { useBlockStore } from './useBlockStore';
 
 interface TimerState {
   // Timer state
@@ -16,9 +18,13 @@ interface TimerState {
   // Preset durations (in minutes)
   presets: number[];
 
+  // Visual Theme State
+  selectedThemeId: string;
+
   // Actions
   setTargetDuration: (seconds: number) => void;
   setLabel: (label: string) => void;
+  setSelectedThemeId: (id: string) => void;
   startSession: () => Promise<void>;
   pauseSession: () => void;
   resumeSession: () => void;
@@ -36,14 +42,25 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   sessionId: null,
   label: '',
   presets: [15, 25, 45, 60, 90],
+  selectedThemeId: 'deep_focus',
 
   setTargetDuration: (seconds) => set({ targetDuration: seconds, elapsed: 0 }),
   setLabel: (label) => set({ label }),
+  setSelectedThemeId: (selectedThemeId) => set({ selectedThemeId }),
 
   startSession: async () => {
     const { targetDuration, label } = get();
     const sessionId = await db.createSession(targetDuration, label || undefined);
     set({ isRunning: true, isPaused: false, elapsed: 0, sessionId });
+
+    // Trigger native app blocking
+    const activeBlockedApps = useBlockStore.getState().blockedApps
+      .filter((a) => a.isActive)
+      .map((a) => a.packageName);
+    if (activeBlockedApps.length > 0) {
+      ExpoAppBlocker.startBlocking(activeBlockedApps);
+      useBlockStore.setState({ isBlockingActive: true });
+    }
   },
 
   pauseSession: () => set({ isPaused: true }),
@@ -65,6 +82,10 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       await db.completeSession(sessionId, elapsed);
     }
     set({ isRunning: false, isPaused: false, sessionId: null });
+
+    // Terminate native app blocking
+    ExpoAppBlocker.stopBlocking();
+    useBlockStore.setState({ isBlockingActive: false });
   },
 
   abandonSession: async () => {
@@ -73,6 +94,10 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       await db.abandonSession(sessionId, elapsed);
     }
     set({ isRunning: false, isPaused: false, elapsed: 0, sessionId: null });
+
+    // Terminate native app blocking
+    ExpoAppBlocker.stopBlocking();
+    useBlockStore.setState({ isBlockingActive: false });
   },
 
   reset: () =>
