@@ -14,20 +14,25 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 *   **Full Timer Control**: Smooth flow transitioning between *Start*, *Pause*, *Resume*, and *Give Up* actions.
 *   **Distraction Simulator**: Run a simulated distraction interception when a session is active to test the app blocker functionality and record stats.
 
-### 2. 🎵 Sound Library
+### 2. 🎵 Sound Library & Ambient Mixer
 *   **Curated Tracks**: Pre-seeded background tracks (e.g., Deep Focus, Rainfall, Ocean Waves, Café Ambience, birds, and cosmic ambient loops).
-*   **Category Filters**: Swiftly browse tracks through horizontal chip filters (All, Ambient, Nature, Lo-Fi, White Noise, Custom).
+*   **Category Filters**: Swiftly browse tracks through horizontal chip filters (All, Ambient, Nature, Lo-Fi, White Noise, My Tracks).
+*   **Ambient Sound Mixer**: Collapsible mixing board allowing users to blend volume levels of 4 sound channels (Rain, Birds, Café, Binaural beats) using custom volume swatches.
+*   **Mix Seeding**: Save custom ambient mixes to SQLite database. They instantly appear and are playable in the "My Tracks" library.
 *   **Persistent Mini Player**: Pinned bottom playback bar displaying current track artwork, title, playback controls, and a reactive progress bar.
 *   **Auto-Advance**: Queue-based player that automatically advances to the next track when the current one finishes.
 
-### 3. 🛡️ App Blocker (Blocklist Management)
+### 3. 🛡️ App Blocker & Mindfulness Nudge
 *   **Custom Target Blocklist**: Toggle status switches to block distracting apps (Instagram, TikTok, Twitter/X, Facebook, YouTube, Reddit, WhatsApp, Discord, etc.).
 *   **Local Persistence**: Active blocks are immediately written to SQLite.
-*   **App Interception Overlay**: Full-screen modal warning ("Distraction Detected!") that pops up to keep you on track, carrying a 3-second auto-return countdown and manual dismiss actions.
+*   **Mindful Breathing Overlay**: Full-screen modal warning ("Distraction Intercepted") that runs a 10-second guided breathing loop (Inhale / Exhale) with smooth animations to help break the impulse loop.
+*   **Focus Integrity Commitment**: Option to request a 1-minute app pass by typing a specific focus commitment phrase exactly.
 
-### 4. 📊 Progress Analytics (Stats Screen)
+### 4. 📊 Focus Guild RPG Analytics (Stats Screen)
+*   **Focus Guild Leveling**: RPG-style progression system. Every 30 minutes of completed focus time earns XP, increasing your level and unlocking higher Focus Ranks (e.g. *Focus Initiate*, *Deep Worker*, *Zen Monk*).
 *   **Summary Cards**: Quick-glance cards showing *Total Focus Time*, *Completed Sessions*, and *Distraction Intercepts*.
 *   **Weekly Bar Chart**: Interactive daily chart representing focus minutes per day, styled natively with `react-native-svg` and `react-native-reanimated`.
+*   **Guild Achievements**: Dynamic badge achievement grid (🌱 *First Flow*, ⚔️ *Focus Knight*, 🛡️ *Iron Shield*, 🔥 *Unstoppable*, 🧘 *Zen Master*, and 📅 *Consistent*) that unlocks automatically based on your SQLite session stats.
 *   **Detailed History**: Chronological log of recent focus sessions, complete with actual/target durations and completion badges (Completed / Abandoned).
 *   **Pull-to-Refresh**: Refresh stats from SQLite database instantly.
 
@@ -52,7 +57,8 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 The app configures a local SQLite database (`focus.db`) on startup containing:
 *   `sessions`: Stores focus start/end timestamps, targets, actual seconds focused, labels, and state (`active`, `completed`, `abandoned`).
 *   `blocked_apps`: List of packages/apps blocklisted by the user.
-*   `session_blocked_attempts`: Incident log tracks every distraction interception event matching the session.
+*   `session_blocked_attempts`: Incident log tracks every distraction interception event matching the session, along with whether a mindful bypass was granted.
+*   `custom_mixes`: Stores user-saved custom volume mixes of ambient loops.
 
 ---
 
