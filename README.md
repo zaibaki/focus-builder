@@ -9,7 +9,7 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 ### 📱 App Demo Video
 Check out the app in action:
 
-<video src="media_output/recording.mp4" width="100%" height="auto" controls></video>
+<video src="https://github.com/zaibaki/focus-builder/raw/main/media_output/recording.mp4" width="100%" height="auto" controls></video>
 
 ### 📸 Screenshots
 Here is a gallery of the premium dark-themed interface:
