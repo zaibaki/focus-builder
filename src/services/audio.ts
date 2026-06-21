@@ -237,11 +237,11 @@ class AudioService {
   async applySpeed(speed: number) {
     try {
       if (this.mainPlayer) {
-        this.mainPlayer.playbackRate = speed;
+        this.mainPlayer.setPlaybackRate(speed);
       }
       for (const player of Object.values(this.mixerPlayers)) {
         if (player) {
-          player.playbackRate = speed;
+          player.setPlaybackRate(speed);
         }
       }
     } catch (e) {
