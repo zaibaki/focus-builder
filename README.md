@@ -9,7 +9,7 @@ The app features a sleek dark-themed interface built using Expo, TypeScript, Zus
 ### 📱 App Demo Video
 Check out the app in action:
 
-<video src="media_output/recording.webm" width="100%" height="auto" controls></video>
+<video src="media_output/recording.mp4" width="100%" height="auto" controls></video>
 
 ### 📸 Screenshots
 Here is a gallery of the premium dark-themed interface:
